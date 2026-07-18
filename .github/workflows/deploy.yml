@@ -30,7 +30,7 @@ jobs:
       - name: Build and Push OpenCart Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: prestashop-core # Keeping your existing repo name to avoid making you recreate a new ECR registry
+          ECR_REPOSITORY: opencarts
           IMAGE_TAG: latest
         run: |
           echo "Building OpenCart image for: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
