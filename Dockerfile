@@ -4,10 +4,9 @@ FROM aamservices/opencart:4.0.0.0
 # 2. Prevent OpenCart from running in developer mode and optimize for production
 ENV OPENCART_DEBUG=0
 
-# 3. Copy your custom OpenCart themes and modules from your GitHub repo into the image
-# OpenCart structures its assets inside 'extension/opencart/catalog/' and 'admin/' paths
-COPY ./themes/ /var/www/html/extension/opencart/catalog/view/theme/
-COPY ./modules/ /var/www/html/extension/opencart/admin/
+# 3. Custom assets (Commented out until folders are populated in GitHub)
+# COPY ./themes/ /var/www/html/extension/opencart/catalog/view/theme/
+# COPY ./modules/ /var/www/html/extension/opencart/admin/
 
 # 4. Correct ownership so Apache can read and write to the application files smoothly
 RUN chown -R www-data:www-data /var/www/html && \
