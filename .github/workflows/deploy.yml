@@ -1,0 +1,42 @@
+name: Kaperski CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "Master" ] 
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-ship:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v3
+
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Amazon ECR Login
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and Push OpenCart Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: prestashop-core # Keeping your existing repo name to avoid making you recreate a new ECR registry
+          IMAGE_TAG: latest
+        run: |
+          echo "Building OpenCart image for: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          
+          # Build explicitly from your new Dockerfile.aws file configuration
+          docker build -f Dockerfile.aws -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          
+          # Ship the compiled image straight up to your secure AWS private registry vault
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
