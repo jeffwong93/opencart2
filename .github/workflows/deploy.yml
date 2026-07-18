@@ -36,7 +36,7 @@ jobs:
           echo "Building OpenCart image for: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           
           # Build explicitly from your new Dockerfile.aws file configuration
-          docker build -f Dockerfile.aws -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           
           # Ship the compiled image straight up to your secure AWS private registry vault
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
