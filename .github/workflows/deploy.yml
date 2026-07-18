@@ -1,4 +1,4 @@
-name: Kaperski CI/CD Pipeline
+name: Kaperski CI/CD Pipeline 
 
 on:
   push:
