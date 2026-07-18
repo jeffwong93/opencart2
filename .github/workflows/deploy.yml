@@ -2,7 +2,7 @@ name: Kaperski CI/CD Pipeline
 
 on:
   push:
-    branches: [ "Master" ] 
+    branches: [ "master" ] 
 
 permissions:
   id-token: write
