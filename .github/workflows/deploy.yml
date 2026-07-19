@@ -1,5 +1,5 @@
 name: Kaperski CI/CD Pipeline 
- 
+
 on:
   push:
     branches: [ "master" ] 
@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Code Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Authenticate to AWS
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -25,7 +25,7 @@ jobs:
 
       - name: Amazon ECR Login
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and Push OpenCart Image
         env:
@@ -35,8 +35,54 @@ jobs:
         run: |
           echo "Building OpenCart image for: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           
-          # Build explicitly from your new Dockerfile.aws file configuration
+          # Build explicitly from your core codebase setup
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           
           # Ship the compiled image straight up to your secure AWS private registry vault
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Trigger Automated Container Update via AWS SSM
+        id: run_ssm
+        run: |
+          echo "=== Dispatching Remote Shell Script via AWS Systems Manager ==="
+          
+          COMMAND_ID=$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:Role,Values=web-server" \
+            --comment "Automated ECR container update deployment triggered by GitHub Actions" \
+            --parameters 'commands=[
+              "#!/bin/bash",
+              "set -e",
+              "REGISTRY_URL=\"777315623538.dkr.ecr.us-east-1.amazonaws.com\"",
+              "echo \"=== Hard Purging Mismatched or Stuck Containers ===\"",
+              "docker rm -f opencart-app 2>/dev/null || true",
+              "docker ps -q --filter \"publish=80\" | xargs -r docker rm -f 2>/dev/null || true",
+              "echo \"=== Letting Sockets Clear ===\"",
+              "sleep 3",
+              "echo \"=== Re-Authenticating Local Docker Daemon to ECR ===\"",
+              "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin \$REGISTRY_URL",
+              "echo \"=== Fetching Latest Application Layer ===\"",
+              "docker pull \$REGISTRY_URL/opencarts:latest",
+              "echo \"=== Launching Containerized Application with EFS Shared Storage ===\"",
+              "docker run -d --name opencart-app -p 80:80 -v /var/www/html/img:/var/www/html/image --restart unless-stopped \$REGISTRY_URL/opencarts:latest"
+            ]' \
+            --region us-east-1 \
+            --query "Command.CommandId" \
+            --output text)
+          
+          echo "Successfully initiated SSM Run Command deployment loop."
+          echo "Tracking Command ID: $COMMAND_ID"
+          echo "COMMAND_ID=$COMMAND_ID" >> $GITHUB_ENV
+
+      - name: Track Deployment Status and List Target Instances
+        run: |
+          echo "Waiting 15 seconds for the private EC2 nodes to process the docker pull operations..."
+          sleep 15
+          
+          echo "=== Live Instance Execution Status Table ==="
+          aws ssm list-command-invocations \
+            --command-id "${{ env.COMMAND_ID }}" \
+            --details \
+            --query "CommandInvocations[*].{InstanceID:InstanceId,Status:Status,ExecutionTime:RequestedDateTime}" \
+            --output table \
+            --region us-east-1
