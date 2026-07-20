@@ -1,5 +1,5 @@
 # 1. Use a verified public OpenCart image built with Apache and PHP
-FROM aamservices/opencart:4.1.0.3
+FROM aamservices/opencart:4.0.0.0
 
 # 2. Prevent OpenCart from running in developer mode and optimize for production
 ENV OPENCART_DEBUG=0
