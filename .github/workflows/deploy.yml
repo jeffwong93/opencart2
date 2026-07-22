@@ -1,5 +1,5 @@
 name: Kaperski CI/CD Pipeline  
- 
+
 on:
   push:
     branches: [ "master" ] 
