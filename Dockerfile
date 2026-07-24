@@ -1,82 +1,53 @@
-FROM aamservices/opencart:3.0.3.8
+# Step 1: Use official PHP Apache image matching OpenCart requirements
+FROM php:8.2-apache
 
-# 1. Force PHP to log errors directly to Docker stdout
-RUN echo "display_errors = On;" >> /usr/local/etc/php/conf.d/opencart.ini && \
-    echo "log_errors = On;" >> /usr/local/etc/php/conf.d/opencart.ini && \
-    echo "error_log = /dev/stderr;" >> /usr/local/etc/php/conf.d/opencart.ini && \
-    echo "error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT;" >> /usr/local/etc/php/conf.d/opencart.ini && \
-    echo "upload_max_filesize = 64M;" >> /usr/local/etc/php/conf.d/opencart.ini && \
-    echo "post_max_size = 64M;" >> /usr/local/etc/php/conf.d/opencart.ini
+# Step 2: Install required system packages and dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    libxml2-dev \
+    unzip \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# 2. FORCE APACHE TO PASS ENVIRONMENT VARIABLES DOWN TO PHP
-RUN echo "PassEnv DB_HOSTNAME DB_HOST DB_USERNAME DB_USER DB_PASSWORD DB_PASS DB_DATABASE DB_NAME" >> /etc/apache2/apache2.conf
+# Step 3: Configure and install required PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        gd \
+        mysqli \
+        pdo_mysql \
+        zip \
+        opcache \
+        mbstring \
+        soap
 
-# 3. Pre-bake the Root config.php template using native PHP environment reading
-RUN echo '<?php\n\
-define("HTTP_SERVER", "http://localhost/");\n\
-define("HTTPS_SERVER", "http://localhost/");\n\
-define("DIR_APPLICATION", "/var/www/html/catalog/");\n\
-define("DIR_SYSTEM", "/var/www/html/system/");\n\
-define("DIR_IMAGE", "/var/www/html/image/");\n\
-define("DIR_STORAGE", "/var/www/html/storage/");\n\
-define("DIR_LANGUAGE", "/var/www/html/catalog/language/");\n\
-define("DIR_TEMPLATE", "/var/www/html/catalog/view/theme/");\n\
-define("DIR_CONFIG", "/var/www/html/system/config/");\n\
-define("DIR_CACHE", "/var/www/html/storage/cache/");\n\
-define("DIR_DOWNLOAD", "/var/www/html/storage/download/");\n\
-define("DIR_LOGS", "/var/www/html/storage/logs/");\n\
-define("DIR_MODIFICATION", "/var/www/html/storage/modification/");\n\
-define("DIR_UPLOAD", "/var/www/html/storage/upload/");\n\
-define("DB_DRIVER", "mysqli");\n\
-define("DB_HOSTNAME", preg_replace("/^.*@/", "", getenv("DB_HOSTNAME") ?: getenv("DB_HOST")));\n\
-define("DB_USERNAME", getenv("DB_USERNAME") ?: getenv("DB_USER"));\n\
-define("DB_PASSWORD", getenv("DB_PASSWORD") ?: getenv("DB_PASS"));\n\
-define("DB_DATABASE", getenv("DB_DATABASE") ?: getenv("DB_NAME"));\n\
-define("DB_PORT", "3306");\n\
-define("DB_PREFIX", "oc_");' > /var/www/html/config.php
+# Step 4: Enable Apache rewrite module for SEO URLs
+RUN a2enmod rewrite
 
-# 4. Pre-bake the Admin config.php template
-RUN echo '<?php\n\
-define("HTTP_SERVER", "http://localhost/admin/");\n\
-define("HTTP_CATALOG", "http://localhost/");\n\
-define("HTTPS_SERVER", "http://localhost/admin/");\n\
-define("HTTPS_CATALOG", "http://localhost/");\n\
-define("DIR_APPLICATION", "/var/www/html/admin/");\n\
-define("DIR_SYSTEM", "/var/www/html/system/");\n\
-define("DIR_IMAGE", "/var/www/html/image/");\n\
-define("DIR_STORAGE", "/var/www/html/storage/");\n\
-define("DIR_LANGUAGE", "/var/www/html/admin/language/");\n\
-define("DIR_TEMPLATE", "/var/www/html/admin/view/template/");\n\
-define("DIR_CONFIG", "/var/www/html/system/config/");\n\
-define("DIR_CACHE", "/var/www/html/storage/cache/");\n\
-define("DIR_DOWNLOAD", "/var/www/html/storage/download/");\n\
-define("DIR_LOGS", "/var/www/html/storage/logs/");\n\
-define("DIR_MODIFICATION", "/var/www/html/storage/modification/");\n\
-define("DIR_UPLOAD", "/var/www/html/storage/upload/");\n\
-define("DIR_CATALOG", "/var/www/html/catalog/");\n\
-define("DB_DRIVER", "mysqli");\n\
-define("DB_HOSTNAME", preg_replace("/^.*@/", "", getenv("DB_HOSTNAME") ?: getenv("DB_HOST")));\n\
-define("DB_USERNAME", getenv("DB_USERNAME") ?: getenv("DB_USER"));\n\
-define("DB_PASSWORD", getenv("DB_PASSWORD") ?: getenv("DB_PASS"));\n\
-define("DB_DATABASE", getenv("DB_DATABASE") ?: getenv("DB_NAME"));\n\
-define("DB_PORT", "3306");\n\
-define("DB_PREFIX", "oc_");' > /var/www/html/admin/config.php
+# Step 5: Define the targeted OpenCart version
+ENV OPENCART_VERSION=4.0.2.3
 
-# 5. Standard file permissions and wipe out installer layout folder
-RUN rm -rf /var/www/html/install && \
-    chown -R www-data:www-data /var/www/html && \
-    find /var/www/html -type d -exec chmod 755 {} \; && \
-    find /var/www/html -type f -exec chmod 644 {} \;
+# Step 6: Download and extract OpenCart package source directly
+WORKDIR /tmp
+RUN curl -sSL -o opencart.zip "https://github.com/opencart/opencart/releases/download/${OPENCART_VERSION}/opencart-${OPENCART_VERSION}.zip" \
+    && unzip opencart.zip \
+    && rm -rf /var/www/html/* \
+    && mv upload/* /var/www/html/ \
+    && rm -rf /tmp/*
 
-# 6. Clean runtime entrypoint to force persistent image directory configurations
-RUN printf '#!/bin/bash\n\
-set -e\n\
-mkdir -p /var/www/html/image/cache/ /var/www/html/image/catalog/\n\
-mkdir -p /var/www/html/storage/cache/ /var/www/html/storage/download/ /var/www/html/storage/logs/ /var/www/html/storage/modification/ /var/www/html/storage/upload/\n\
-chown -R www-data:www-data /var/www/html/image /var/www/html/storage\n\
-chmod -R 775 /var/www/html/image /var/www/html/storage\n\
-echo "Configurations successfully mounted. Booting Apache..."\n\
-exec docker-php-entrypoint apache2-foreground\n' > /usr/local/bin/entrypoint.sh
+# Step 7: Create default empty configuration files
+WORKDIR /var/www/html
+RUN cp config-dist.php config.php \
+    && cp admin/config-dist.php admin/config.php
 
-RUN chmod +x /usr/local/bin/entrypoint.sh
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Step 8: Set correct ownership permissions for the Apache user
+RUN chown -R www-data:www-data /var/www/html
+
+# Step 9: Expose the standard HTTP port
+EXPOSE 80
+
+# Step 10: Start Apache in the foreground
+CMD ["apache2-foreground"]
