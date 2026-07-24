@@ -39,6 +39,7 @@ RUN curl -sSL -o opencart.zip "https://github.com{OPENCART_VERSION}/opencart-${O
     && rm -rf /tmp/*
 
 
+
 # Step 7: Create default empty configuration files
 WORKDIR /var/www/html
 RUN cp config-dist.php config.php \
