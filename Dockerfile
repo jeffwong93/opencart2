@@ -1,6 +1,6 @@
 FROM aamservices/opencart:3.0.3.8
 
-# 1. Inject production PHP settings and direct stderr logs
+# 1. Force PHP to log errors directly to Docker stdout
 RUN echo "display_errors = On;" >> /usr/local/etc/php/conf.d/opencart.ini && \
     echo "log_errors = On;" >> /usr/local/etc/php/conf.d/opencart.ini && \
     echo "error_log = /dev/stderr;" >> /usr/local/etc/php/conf.d/opencart.ini && \
@@ -8,7 +8,10 @@ RUN echo "display_errors = On;" >> /usr/local/etc/php/conf.d/opencart.ini && \
     echo "upload_max_filesize = 64M;" >> /usr/local/etc/php/conf.d/opencart.ini && \
     echo "post_max_size = 64M;" >> /usr/local/etc/php/conf.d/opencart.ini
 
-# 2. Pre-bake the Root config.php template
+# 2. FORCE APACHE TO PASS ENVIRONMENT VARIABLES DOWN TO PHP
+RUN echo "PassEnv DB_HOSTNAME DB_HOST DB_USERNAME DB_USER DB_PASSWORD DB_PASS DB_DATABASE DB_NAME" >> /etc/apache2/apache2.conf
+
+# 3. Pre-bake the Root config.php template using native PHP environment reading
 RUN echo '<?php\n\
 define("HTTP_SERVER", "http://localhost/");\n\
 define("HTTPS_SERVER", "http://localhost/");\n\
@@ -32,7 +35,7 @@ define("DB_DATABASE", getenv("DB_DATABASE") ?: getenv("DB_NAME"));\n\
 define("DB_PORT", "3306");\n\
 define("DB_PREFIX", "oc_");' > /var/www/html/config.php
 
-# 3. Pre-bake the Admin config.php template
+# 4. Pre-bake the Admin config.php template
 RUN echo '<?php\n\
 define("HTTP_SERVER", "http://localhost/admin/");\n\
 define("HTTP_CATALOG", "http://localhost/");\n\
@@ -59,13 +62,13 @@ define("DB_DATABASE", getenv("DB_DATABASE") ?: getenv("DB_NAME"));\n\
 define("DB_PORT", "3306");\n\
 define("DB_PREFIX", "oc_");' > /var/www/html/admin/config.php
 
-# 4. Standard file permissions and wipe out installer layout folder
+# 5. Standard file permissions and wipe out installer layout folder
 RUN rm -rf /var/www/html/install && \
     chown -R www-data:www-data /var/www/html && \
     find /var/www/html -type d -exec chmod 755 {} \; && \
     find /var/www/html -type f -exec chmod 644 {} \;
 
-# 5. Clean runtime entrypoint to force persistent image directory configurations
+# 6. Clean runtime entrypoint to force persistent image directory configurations
 RUN printf '#!/bin/bash\n\
 set -e\n\
 mkdir -p /var/www/html/image/cache/ /var/www/html/image/catalog/\n\
