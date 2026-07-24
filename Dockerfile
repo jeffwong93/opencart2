@@ -1,6 +1,6 @@
 FROM aamservices/opencart:3.0.3.8
 
-# 1. Force PHP to log errors directly to Docker stdout (fixes the blind 500 error)
+# 1. Force PHP to log errors directly to Docker stdout
 RUN echo "display_errors = On;" >> /usr/local/etc/php/conf.d/opencart.ini && \
     echo "log_errors = On;" >> /usr/local/etc/php/conf.d/opencart.ini && \
     echo "error_log = /dev/stderr;" >> /usr/local/etc/php/conf.d/opencart.ini && \
@@ -13,7 +13,7 @@ RUN chown -R www-data:www-data /var/www/html && \
     find /var/www/html -type d -exec chmod 755 {} \; && \
     find /var/www/html -type f -exec chmod 644 {} \;
 
-# 3. Secure entrypoint script with accurate 3.0.3.8 path variables
+# 3. Create entrypoint script using safe single-quoted EOF blocks
 RUN printf '#!/bin/bash\n\
 set -e\n\
 \n\
@@ -29,15 +29,15 @@ chown -R www-data:www-data /var/www/html/image /var/www/html/storage\n\
 chmod -R 775 /var/www/html/image /var/www/html/storage\n\
 \n\
 # Sanitize variables\n\
-HOST_ONLY=$(echo "${DB_HOSTNAME:-$DB_HOST}" | sed "s/^.*@//")\n\
-USER_ONLY="${DB_USERNAME:-$DB_USER}"\n\
-PASS_ONLY="${DB_PASSWORD:-$DB_PASS}"\n\
-NAME_ONLY="${DB_DATABASE:-$DB_NAME}"\n\
+export HOST_ONLY=$(echo "${DB_HOSTNAME:-$DB_HOST}" | sed "s/^.*@//")\n\
+export USER_ONLY="${DB_USERNAME:-$DB_USER}"\n\
+export PASS_ONLY="${DB_PASSWORD:-$DB_PASS}"\n\
+export NAME_ONLY="${DB_DATABASE:-$DB_NAME}"\n\
 \n\
 echo "Generating production configuration..."\n\
 \n\
-# Corrected Root config.php mapping\n\
-cat <<EOF > /var/www/html/config.php\n\
+# Corrected Root config.php mapping using environmental substitution\n\
+cat << \x27EOF\x27 > /var/www/html/config.php\n\
 <?php\n\
 define(\x27HTTP_SERVER\x27, \x27http://localhost/\x27);\n\
 define(\x27HTTPS_SERVER\x27, \x27http://localhost/\x27);\n\
@@ -54,16 +54,16 @@ define(\x27DIR_LOGS\x27, \x27/var/www/html/storage/logs/\x27);\n\
 define(\x27DIR_MODIFICATION\x27, \x27/var/www/html/storage/modification/\x27);\n\
 define(\x27DIR_UPLOAD\x27, \x27/var/www/html/storage/upload/\x27);\n\
 define(\x27DB_DRIVER\x27, \x27mysqli\x27);\n\
-define(\x27DB_HOSTNAME\x27, \x27\x27 . \$HOST_ONLY . \x27\x27);\n\
-define(\x27DB_USERNAME\x27, \x27\x27 . \$USER_ONLY . \x27\x27);\n\
-define(\x27DB_PASSWORD\x27, \x27\x27 . \$PASS_ONLY . \x27\x27);\n\
-define(\x27DB_DATABASE\x27, \x27\x27 . \$NAME_ONLY . \x27\x27);\n\
+define(\x27DB_HOSTNAME\x27, getenv(\x27HOST_ONLY\x27));\n\
+define(\x27DB_USERNAME\x27, getenv(\x27USER_ONLY\x27));\n\
+define(\x27DB_PASSWORD\x27, getenv(\x27PASS_ONLY\x27));\n\
+define(\x27DB_DATABASE\x27, getenv(\x27NAME_ONLY\x27));\n\
 define(\x27DB_PORT\x27, \x273306\x27);\n\
 define(\x27DB_PREFIX\x27, \x27oc_\x27);\n\
 EOF\n\
 \n\
-# Corrected Admin config.php mapping\n\
-cat <<EOF > /var/www/html/admin/config.php\n\
+# Corrected Admin config.php mapping using environmental substitution\n\
+cat << \x27EOF\x27 > /var/www/html/admin/config.php\n\
 <?php\n\
 define(\x27HTTP_SERVER\x27, \x27http://localhost/admin/\x27);\n\
 define(\x27HTTP_CATALOG\x27, \x27http://localhost/\x27);\n\
@@ -83,10 +83,10 @@ define(\x27DIR_MODIFICATION\x27, \x27/var/www/html/storage/modification/\x27);\n
 define(\x27DIR_UPLOAD\x27, \x27/var/www/html/storage/upload/\x27);\n\
 define(\x27DIR_CATALOG\x27, \x27/var/www/html/catalog/\x27);\n\
 define(\x27DB_DRIVER\x27, \x27mysqli\x27);\n\
-define(\x27DB_HOSTNAME\x27, \x27\x27 . \$HOST_ONLY . \x27\x27);\n\
-define(\x27DB_USERNAME\x27, \x27\x27 . \$USER_ONLY . \x27\x27);\n\
-define(\x27DB_PASSWORD\x27, \x27\x27 . \$PASS_ONLY . \x27\x27);\n\
-define(\x27DB_DATABASE\x27, \x27\x27 . \$NAME_ONLY . \x27\x27);\n\
+define(\x27DB_HOSTNAME\x27, getenv(\x27HOST_ONLY\x27));\n\
+define(\x27DB_USERNAME\x27, getenv(\x27USER_ONLY\x27));\n\
+define(\x27DB_PASSWORD\x27, getenv(\x27PASS_ONLY\x27));\n\
+define(\x27DB_DATABASE\x27, getenv(\x27NAME_ONLY\x27));\n\
 define(\x27DB_PORT\x27, \x273306\x27);\n\
 define(\x27DB_PREFIX\x27, \x27oc_\x27);\n\
 EOF\n\
@@ -94,7 +94,7 @@ EOF\n\
 chown www-data:www-data /var/www/html/config.php /var/www/html/admin/config.php\n\
 chmod 644 /var/www/html/config.php /var/www/html/admin/config.php\n\
 \n\
-# Remove installer UI folder so OpenCart defaults to loading storefront\n\
+# Remove installer UI folder\n\
 rm -rf /var/www/html/install\n\
 \n\
 echo "Launching production server..."\n\
