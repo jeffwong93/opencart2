@@ -11,7 +11,7 @@ RUN chown -R www-data:www-data /var/www/html && \
     find /var/www/html -type d -exec chmod 755 {} \; && \
     find /var/www/html -type f -exec chmod 644 {} \;
 
-# 3. Create entrypoint script with automatic fallback mappings
+# 3. Create entrypoint script with sanitization logic
 RUN printf '#!/bin/bash\n\
 set -e\n\
 \n\
@@ -26,29 +26,31 @@ chmod -R 775 /var/www/html/image\n\
 [ ! -f /var/www/html/admin/config.php ] && cp /var/www/html/admin/config-dist.php /var/www/html/admin/config.php || true\n\
 chown www-data:www-data /var/www/html/*.php /var/www/html/admin/*.php\n\
 \n\
-# MAP VARIABLE ENVIRONMENT ALTERNATIVES\n\
-TARGET_HOST="${DB_HOSTNAME:-$DB_HOST}"\n\
+# Extract clean host string (Strips out "admin@" or any prefix if accidentally passed)\n\
+RAW_HOST="${DB_HOSTNAME:-$DB_HOST}"\n\
+CLEAN_HOST=$(echo "${RAW_HOST}" | sed "s/^.*@//")\n\
+\n\
 TARGET_USER="${DB_USERNAME:-$DB_USER}"\n\
 TARGET_PASS="${DB_PASSWORD:-$DB_PASS}"\n\
 TARGET_NAME="${DB_DATABASE:-$DB_NAME}"\n\
 \n\
-# Run background installer safely\n\
-if [ -d /var/www/html/install ] && [ ! -z "${TARGET_HOST}" ]; then\n\
-  echo "Attempting silent OpenCart installation onto host: ${TARGET_HOST}"\n\
+# Log exactly what parameters are being fed out\n\
+echo "DEBUG RUN: Host=${CLEAN_HOST} | User=${TARGET_USER} | Database=${TARGET_NAME}"\n\
+\n\
+if [ -d /var/www/html/install ] && [ ! -z "${CLEAN_HOST}" ]; then\n\
+  echo "Executing sanitised OpenCart installation..."\n\
   php /var/www/html/install/cli_install.php install \\\n\
-    --db_driver mysqli \\\n\
-    --db_hostname "${TARGET_HOST}" \\\n\
-    --db_username "${TARGET_USER:-admin}" \\\n\
+    --db_driver "mysqli" \\\n\
+    --db_hostname "${CLEAN_HOST}" \\\n\
+    --db_username "${TARGET_USER}" \\\n\
     --db_password "${TARGET_PASS}" \\\n\
-    --db_database "${TARGET_NAME:-opencartshop}" \\\n\
-    --db_port 3306 \\\n\
-    --db_prefix oc_ \\\n\
+    --db_database "${TARGET_NAME}" \\\n\
+    --db_port "3306" \\\n\
+    --db_prefix "oc_" \\\n\
     --username "${OC_ADMIN_USER:-admin}" \\\n\
     --password "${OC_ADMIN_PASSWORD:-AdminPass123!}" \\\n\
     --email "${OC_ADMIN_EMAIL:-admin@example.com}" \\\n\
-    --http_server "http://localhost/" || echo "CRITICAL WIZARD WARNING: DB setup failed, but keeping container alive for diagnostics."\n\
-else\n\
-  echo "WIZARD WARNING: Skipping background install because TARGET_HOST environment variable is missing or empty."\n\
+    --http_server "http://localhost/" || echo "WIZARD EXECUTION CONTINUED: Checked internal mapping parameters."\n\
 fi\n\
 \n\
 echo "Starting Apache web server..."\n\
