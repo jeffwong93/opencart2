@@ -30,18 +30,20 @@ RUN a2enmod rewrite
 # Step 5: Define the targeted OpenCart version
 ENV OPENCART_VERSION=4.0.2.3
 
-# Step 6: Download and extract OpenCart package source directly
+# Step 6: Download and extract OpenCart package source safely
 WORKDIR /tmp
-RUN curl -sSL -o opencart.zip "https://github.com/opencart/opencart/releases/download/${OPENCART_VERSION}/opencart-${OPENCART_VERSION}.zip" \
+RUN curl -sSL -o opencart.zip "https://github.com{OPENCART_VERSION}/opencart-${OPENCART_VERSION}.zip" \
     && unzip opencart.zip \
     && rm -rf /var/www/html/* \
-    && mv upload/* /var/www/html/ \
+    # Standardizes targeting the folder regardless of root naming quirks
+    && mv opencart-*/upload/* /var/www/html/ \
     && rm -rf /tmp/*
 
 # Step 7: Create default empty configuration files
 WORKDIR /var/www/html
 RUN cp config-dist.php config.php \
     && cp admin/config-dist.php admin/config.php
+
 
 # Step 8: Set correct ownership permissions for the Apache user
 RUN chown -R www-data:www-data /var/www/html
