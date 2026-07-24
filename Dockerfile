@@ -1,5 +1,5 @@
-# 1. Switch to a cleaner, updated stable OpenCart 3 release
-FROM aamservices/opencart:3.0.4.0
+# 1. Use the verified, available stable release tag
+FROM aamservices/opencart:3.0.3.8
 
 # 2. Inject production PHP settings
 RUN echo "display_errors = Off;" >> /usr/local/etc/php/conf.d/opencart.ini && \
@@ -12,7 +12,7 @@ RUN chown -R www-data:www-data /var/www/html && \
     find /var/www/html -type d -exec chmod 755 {} \; && \
     find /var/www/html -type f -exec chmod 644 {} \;
 
-# 4. Create an entrypoint that manually builds config files to bypass the wizard completely
+# 4. Entrypoint that generates operational configs without using the CLI wizard
 RUN printf '#!/bin/bash\n\
 set -e\n\
 \n\
@@ -28,7 +28,7 @@ USER_ONLY="${DB_USERNAME:-$DB_USER}"\n\
 PASS_ONLY="${DB_PASSWORD:-$DB_PASS}"\n\
 NAME_ONLY="${DB_DATABASE:-$DB_NAME}"\n\
 \n\
-echo "Configuring OpenCart for DB Host: $HOST_ONLY"\n\
+echo "Writing configuration specs for DB Host: $HOST_ONLY"\n\
 \n\
 # Build root config.php dynamically\n\
 cat <<EOF > /var/www/html/config.php\n\
