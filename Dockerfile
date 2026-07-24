@@ -35,9 +35,9 @@ WORKDIR /tmp
 RUN curl -sSL -o opencart.zip "https://github.com{OPENCART_VERSION}/opencart-${OPENCART_VERSION}.zip" \
     && unzip opencart.zip \
     && rm -rf /var/www/html/* \
-    # Standardizes targeting the folder regardless of root naming quirks
-    && mv opencart-*/upload/* /var/www/html/ \
+    && find . -maxdepth 3 -type d -name "upload" -exec mv {}/* /var/www/html/ \; \
     && rm -rf /tmp/*
+
 
 # Step 7: Create default empty configuration files
 WORKDIR /var/www/html
