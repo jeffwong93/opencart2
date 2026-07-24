@@ -1,5 +1,5 @@
 # 1. Switch to a cleaner, updated stable OpenCart 3 release
-FROM aamservices/opencart:3.0.3.9
+FROM aamservices/opencart:3.0.4.0
 
 # 2. Inject production PHP settings
 RUN echo "display_errors = Off;" >> /usr/local/etc/php/conf.d/opencart.ini && \
