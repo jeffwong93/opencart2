@@ -4,8 +4,8 @@ FROM aamservices/opencart:4.0.0.0
 # Disable debug mode
 ENV OPENCART_DEBUG=0
 
-# Copy your customized OpenCart files
-COPY upload/ /var/www/html/
+COPY upload/catalog/view/template/common/home.html \
+     /var/www/html/catalog/view/template/common/home.html
 
 # Set file permissions
 RUN chown -R www-data:www-data /var/www/html && \
