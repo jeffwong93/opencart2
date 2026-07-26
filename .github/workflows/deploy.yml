@@ -47,25 +47,28 @@ jobs:
           
       - name: Deploy to Private EC2 via AWS Systems Manager
         run: |
+
+          IMAGE="777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest"
+          
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets "Key=tag:Name,Values=OpenCart-Server" \
             --comment "Deploy latest OpenCart Docker image" \
             --parameters 'commands=[
             "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 777315623538.dkr.ecr.us-east-1.amazonaws.com",
-            "docker pull 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
+            "docker pull $IMAGE",
       
             "docker stop opencart-app || true",
             "docker rm opencart-app || true",
       
-            "docker create --name opencart-init 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
+            "docker create --name opencart-init $IMAGE",
             "mkdir -p /tmp/opencart-image",
             "docker cp opencart-init:/var/www/html/image/. /tmp/opencart-image/",
             "cp -rn /tmp/opencart-image/* /var/www/html/image/",
             "docker rm opencart-init",
             "rm -rf /tmp/opencart-image",
       
-            "docker run -d --name opencart-app --restart unless-stopped -p 80:80 -v /var/www/html/image:/var/www/html/image 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
+            "docker run -d --name opencart-app --restart unless-stopped -p 80:80 -v /var/www/html/image:/var/www/html/image $IMAGE",
       
             "docker image prune -f",
             "docker images"
