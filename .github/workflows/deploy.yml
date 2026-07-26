@@ -1,6 +1,6 @@
 name: Kaperski CI/CD Pipeline
 
-on: 
+on:  
   push:
     branches:
       - master
