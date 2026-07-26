@@ -56,6 +56,8 @@ jobs:
             "docker pull 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
             "docker stop opencart-app || true",
             "docker rm opencart-app || true",
-            "docker run -d --name opencart-app --restart unless-stopped -p 80:80 -v /var/www/html/image:/var/www/html/image 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest"
+            "docker run -d --name opencart-app --restart unless-stopped -p 80:80 -v /var/www/html/image:/var/www/html/image 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
+            "docker image prune -f",
+            "docker images"
             ]' \
             --region us-east-1
