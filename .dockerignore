@@ -38,6 +38,7 @@ lerna-debug.log*
 
 upload/config.php
 upload/admin/config.php
+upload/install
 
 # Temporary files
 *.tmp
