@@ -36,6 +36,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+upload/config.php
+upload/admin/config.php
+
 # Temporary files
 *.tmp
 *.temp
