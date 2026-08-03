@@ -1,5 +1,5 @@
 # Use stable OpenCart image
-FROM aamservices/opencart:3.0.3.8
+FROM aamservices/opencart:3.0.3.6
 
 # Disable debug mode
 ENV OPENCART_DEBUG=0
