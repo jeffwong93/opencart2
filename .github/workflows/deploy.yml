@@ -58,10 +58,17 @@ jobs:
             "docker stop opencart-app || true",
             "docker rm opencart-app || true",
       
-            "docker create --name opencart-init 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
-            "mkdir -p /tmp/opencart-image",
             "docker cp opencart-init:/var/www/html/image/. /tmp/opencart-image/",
+            "mkdir -p /var/www/html/image",
             "cp -rn /tmp/opencart-image/* /var/www/html/image/",
+            
+            "mkdir -p /var/www/html/image/cache",
+            "mkdir -p /var/www/html/image/cache/catalog",
+            "mkdir -p /var/www/html/image/catalog",
+            
+            "chown -R 33:33 /var/www/html/image",
+            "chmod -R 775 /var/www/html/image",
+            
             "docker rm opencart-init",
             "rm -rf /tmp/opencart-image",
       
