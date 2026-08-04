@@ -60,7 +60,7 @@ jobs:
       
             "docker cp opencart-init:/var/www/html/image/. /tmp/opencart-image/",
             "mkdir -p /var/www/html/image",
-            "cp -rn /tmp/opencart-image/* /var/www/html/image/",
+            "cp -r /tmp/opencart-image/* /var/www/html/image/",
             
             "mkdir -p /var/www/html/image/cache",
             "mkdir -p /var/www/html/image/cache/catalog",
