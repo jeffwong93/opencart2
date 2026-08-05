@@ -1,6 +1,6 @@
-name: Kaperski CI/CD Pipeline
- 
-on:
+name: Kaperski CI/CD Pipeline 
+
+on:  
   push:
     branches:
       - master
@@ -13,11 +13,6 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
-    env:
-      AWS_REGION: us-east-1
-      ECR_REPOSITORY: opencart-core
-      IMAGE_TAG: latest
-
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -28,7 +23,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -37,62 +32,42 @@ jobs:
       - name: Build Docker Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: opencart-core
+          IMAGE_TAG: latest
         run: |
-          docker build \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
 
-      - name: Push Docker Image
+      - name: Push Docker Image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: opencart-core
+          IMAGE_TAG: latest
         run: |
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-      - name: Deploy via AWS Systems Manager
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          
+      - name: Deploy to Private EC2 via AWS Systems Manager
         run: |
-
-          COMMAND_ID=$(aws ssm send-command \
+          aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --targets "Key=tag:Name,Values=OpenCart-Server" \
             --comment "Deploy latest OpenCart Docker image" \
-            --parameters commands='[
-              "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin '"$ECR_REGISTRY"'",
-              "docker pull '"$ECR_REGISTRY"'/'"$ECR_REPOSITORY"':'"$IMAGE_TAG"'",
-              "docker stop opencart-app || true",
-              "docker rm opencart-app || true",
-
-              "mkdir -p /var/www/html/image",
-
-              "docker create --name opencart-init '"$ECR_REGISTRY"'/'"$ECR_REPOSITORY"':'"$IMAGE_TAG"'",
-
-              "if [ ! -d /var/www/html/image/catalog ]; then mkdir -p /tmp/opencart-image && docker cp opencart-init:/var/www/html/image/. /tmp/opencart-image/ && cp -a /tmp/opencart-image/. /var/www/html/image/ && rm -rf /tmp/opencart-image; fi",
-
-              "mkdir -p /var/www/html/image/catalog/demo",
-              "docker cp opencart-init:/var/www/html/image/catalog/demo/. /var/www/html/image/catalog/demo/ || true",
-
-              "docker rm opencart-init",
-
-              "rm -rf /var/www/html/image/cache",
-              "mkdir -p /var/www/html/image/cache/catalog",
-
-              "chown -R 33:33 /var/www/html/image",
-              "chmod -R 775 /var/www/html/image",
-
-              "docker run -d --name opencart-app --restart unless-stopped -p 80:80 -v /var/www/html/image:/var/www/html/image '"$ECR_REGISTRY"'/'"$ECR_REPOSITORY"':'"$IMAGE_TAG"'",
-
-              "docker image prune -f",
-              "docker images"
+            --parameters 'commands=[
+            "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 777315623538.dkr.ecr.us-east-1.amazonaws.com",
+            "docker pull 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
+      
+            "docker stop opencart-app || true",
+            "docker rm opencart-app || true",
+      
+            "docker create --name opencart-init 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
+            "mkdir -p /tmp/opencart-image",
+            "docker cp opencart-init:/var/www/html/image/. /tmp/opencart-image/",
+            "cp -rn /tmp/opencart-image/* /var/www/html/image/",
+            "docker rm opencart-init",
+            "rm -rf /tmp/opencart-image",
+      
+            "docker run -d --name opencart-app --restart unless-stopped -p 80:80 -v /var/www/html/image:/var/www/html/image 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
+      
+            "docker image prune -f",
+            "docker images"
             ]' \
-            --region $AWS_REGION \
-            --query "Command.CommandId" \
-            --output text)
-
-          echo "Command ID: $COMMAND_ID"
-
-          sleep 10
-
-          aws ssm list-command-invocations \
-            --command-id $COMMAND_ID \
-            --details \
-            --region $AWS_REGION
+            --region us-east-1
