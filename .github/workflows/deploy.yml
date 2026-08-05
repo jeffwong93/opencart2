@@ -61,30 +61,37 @@ jobs:
       
             "mkdir -p /var/www/html/image",
       
-            "if [ -z \"$(ls -A /var/www/html/image 2>/dev/null)\" ]; then \
+            "docker create --name opencart-init 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
+      
+            "if [ ! -d /var/www/html/image/catalog ]; then \
                 echo Initialising EFS image directory; \
-                docker create --name opencart-init 777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest; \
                 mkdir -p /tmp/opencart-image; \
                 docker cp opencart-init:/var/www/html/image/. /tmp/opencart-image/; \
-                cp -r /tmp/opencart-image/. /var/www/html/image/; \
-                docker rm opencart-init; \
+                cp -a /tmp/opencart-image/. /var/www/html/image/; \
                 rm -rf /tmp/opencart-image; \
             fi",
       
-            "mkdir -p /var/www/html/image/cache",
+            "mkdir -p /var/www/html/image/catalog/demo",
+            "docker cp opencart-init:/var/www/html/image/catalog/demo/. /var/www/html/image/catalog/demo/",
+      
+            "docker rm opencart-init",
+      
+            "rm -rf /var/www/html/image/cache",
             "mkdir -p /var/www/html/image/cache/catalog",
       
             "chown -R 33:33 /var/www/html/image",
             "chmod -R 775 /var/www/html/image",
       
             "docker run -d \
-                --name opencart-app \
-                --restart unless-stopped \
-                -p 80:80 \
-                -v /var/www/html/image:/var/www/html/image \
-                777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
+              --name opencart-app \
+              --restart unless-stopped \
+              -p 80:80 \
+              -v /var/www/html/image:/var/www/html/image \
+              777315623538.dkr.ecr.us-east-1.amazonaws.com/opencart-core:latest",
       
             "docker image prune -f",
             "docker images"
             ]' \
             --region us-east-1
+                  ]' \
+                  --region us-east-1
